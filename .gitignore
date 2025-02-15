@@ -16,6 +16,9 @@
 # misc
 .DS_Store
 *.pem
+__pycache__
+files.hackerthon
+
 
 # debug
 npm-debug.log*
