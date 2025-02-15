@@ -1,6 +1,6 @@
 import httpx
 import uuid
-import time
+import asyncio
 from rich.console import Console
 from rich.table import Table
 
@@ -9,7 +9,7 @@ console = Console()
 BASE_URL = "http://localhost:8000"
 
 async def run_test_sequence():
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         # Generate a unique session ID
         session_id = str(uuid.uuid4())
         
@@ -51,17 +51,26 @@ async def run_test_sequence():
         
         for i, test_case in enumerate(test_cases, 1):
             console.print(f"\n[bold blue]Test Case {i}: {test_case['role']}[/bold blue]")
+            console.print("[cyan]Request:[/cyan]")
+            console.print(test_case['text'])
+            console.print("\n[cyan]Gemini Response:[/cyan]")
             
-            # Send request
-            response = await client.post(
-                f"{BASE_URL}/api/chat",
-                json={
-                    "text": test_case["text"],
-                    "session_id": session_id,
-                    "topic_area": "Python backend development" if i == 1 else None
-                }
-            )
-            
+            try:
+                response = await client.post(
+                    f"{BASE_URL}/api/chat",
+                    json={
+                        "text": test_case["text"],
+                        "session_id": session_id,
+                        "topic_area": "Python backend development" if i == 1 else None
+                    }
+                )
+            except httpx.TimeoutError:
+                console.print("[red]Error: Request timed out. The server is taking too long to respond.[/red]")
+                continue
+            except Exception as e:
+                console.print(f"[red]Error: {str(e)}[/red]")
+                continue
+
             if response.status_code != 200:
                 console.print(f"[red]Error: {response.text}[/red]")
                 continue
