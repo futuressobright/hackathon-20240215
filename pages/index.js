@@ -200,7 +200,7 @@ export default function Home() {
                     </button>
                     <button
                         onClick={() => setIsAuthenticated(false)}
-                        className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-md"
+                        className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-md mb-16"
                     >
                         Login to View Your Results!
                     </button>
