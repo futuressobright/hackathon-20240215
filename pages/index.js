@@ -177,7 +177,7 @@ export default function Home() {
 
             {!sessionStarted ? (
                 <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
-                    <h1 className="text-3xl font-extrabold text-white mb-4">AI Interview Assistant</h1>
+                    <h1 className="text-3xl font-extrabold text-white mb-4">Secret Agent Interviewer</h1>
                     <p className="mb-6 text-gray-300">Get ready for a smart, adaptive interview.</p>
                     <button
                         onClick={startInterview}
