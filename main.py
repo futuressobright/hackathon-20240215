@@ -1,11 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
 import weave
 import wandb
+import stytch
+import requests
+import re
+import sys
 from typing import List, Optional
 
 # Load environment variables
@@ -25,6 +29,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+stytch_client = stytch.Client(
+    project_id=os.getenv("STYTCH_PROJECT_ID"),
+    secret=os.getenv("STYTCH_SECRET_KEY")
+)
+print("STYTCH version:", stytch.__version__)  # Add this line here
+
+print("Project ID:", os.getenv("STYTCH_PROJECT_ID")[:5] + "...")  # Print just first 5 chars for safety
+print("Secret exists:", bool(os.getenv("STYTCH_SECRET_KEY")))
+
+print("Python encoding:", sys.getdefaultencoding())
+
+
 
 # Configure Gemini
 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
@@ -50,6 +67,9 @@ class ChatResponse(BaseModel):
     difficulty_level: float
     next_question: Optional[str] = None
     status: str
+
+class AuthRequest(BaseModel):
+    email: EmailStr
 
 # In-memory storage for interview states
 interview_sessions = {}
@@ -150,6 +170,23 @@ async def chat(request: ChatRequest):
     print("🔥 Process Interview Output:", response_data)
 
     return ChatResponse(**response_data)  # Still using response_model validation
+
+
+@app.post("/api/auth/send-magic-link")
+async def send_magic_link(request: AuthRequest):
+    try:
+        print("Sending magic link")
+        response = stytch_client.magic_links.email.login_or_create(
+            email="test@example.com",
+            login_magic_link_url="http://localhost:3030/auth/callback",
+            signup_magic_link_url="http://localhost:3030/auth/callback"
+        )
+        print("Success:", response)
+        return {"message": "Magic link sent", "method_id": response.method_id}
+    except Exception as e:
+        print("Error:", str(e))
+        return {"error": str(e)}
+
 
 
 # Health check endpoint remains the same

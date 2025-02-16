@@ -1,6 +1,7 @@
 import {useState, useEffect} from "react";
 import {v4 as uuidv4} from "uuid";
 
+
 const AdaptiveBackground = ({ difficulty = 1.0, children }) => {
     const getBackgroundClass = (level) => {
         if (level <= 0.6) return "bg-gradient-to-br from-green-500 via-green-600 to-blue-600";   // Doing great - cool/calm
@@ -27,6 +28,7 @@ export default function Home() {
     const [showNextQuestion, setShowNextQuestion] = useState(false);
     const [showLimitWarning, setShowLimitWarning] = useState(false);
     const [interviewComplete, setInterviewComplete] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
 
     // Initialize speech recognition
@@ -185,9 +187,7 @@ export default function Home() {
                     </button>
                 </div>
             ) : interviewComplete ? (
-                <div
-                    className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white">
-                    <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
+     <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
                         <h1 className="text-3xl font-extrabold text-white mb-4">Thank You!</h1>
                         <p className="mb-6 text-gray-300">
                             You’ve completed the interview. We appreciate your time!
@@ -199,7 +199,6 @@ export default function Home() {
                             Return to Home
                         </button>
                     </div>
-                </div>
             ) : (
                 <div className="bg-white/20 backdrop-blur-lg p-6 rounded-xl shadow-lg text-gray-900 w-[450px]">
                     <h1 className="text-2xl font-bold text-center text-white mb-4">Interview Session</h1>
