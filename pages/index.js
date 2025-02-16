@@ -9,89 +9,116 @@ export default function Home() {
     const [sessionId, setSessionId] = useState("");
     const [difficulty, setDifficulty] = useState(1.0);
     const [nextQuestion, setNextQuestion] = useState("");
-    const [showNextQuestion, setShowNextQuestion] = useState(false);
+    const [showNextQuestion, setShowNextQuestion] = useState(false)
+    const [showLimitWarning, setShowLimitWarning] = useState(false);
+
 
     // Initialize session
-useEffect(() => {
-  if ("webkitSpeechRecognition" in window) {
-    const recognition = new window.webkitSpeechRecognition();
-    recognition.continuous = true;  // ✅ Keeps listening
-    recognition.interimResults = true;  // ✅ Shows words while speaking
+    useEffect(() => {
+        if ("webkitSpeechRecognition" in window) {
+            const recognition = new window.webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
 
-    recognition.onresult = (event) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
+            let timer = null; // ✅ Timer for auto-stop
 
-      for (let i = 0; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + " ";
-        } else {
-          interimTranscript += event.results[i][0].transcript + " ";
+            recognition.onstart = () => {
+                setShowLimitWarning(false); // ✅ Reset warning
+                setIsListening(true);
+
+                // ✅ Auto-stop after 45 seconds
+                timer = setTimeout(() => {
+                    console.log("Max response time reached.");
+                    recognition.stop();
+                    setShowLimitWarning(true); // ✅ Show warning
+                }, 45000);  // 45 seconds in milliseconds
+            };
+
+            recognition.onresult = (event) => {
+                let finalTranscript = "";
+                let interimTranscript = "";
+
+                for (let i = 0; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + " ";
+                    } else {
+                        interimTranscript += event.results[i][0].transcript + " ";
+                    }
+                }
+
+                setUserInput(finalTranscript + interimTranscript);
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                setIsListening(false);
+                clearTimeout(timer); // ✅ Stop the timer on error
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+                clearTimeout(timer); // ✅ Stop the timer when recognition ends
+            };
+
+            window.recognition = recognition;
         }
-      }
-
-      // ✅ Updates the text box live
-      setUserInput(finalTranscript + interimTranscript);
-    };
-
-    recognition.onend = () => {
-      console.log("Speech recognition stopped.");
-      setIsListening(false);
-    };
-
-    window.recognition = recognition;
-  }
-}, []);
-
+    }, []);
 
 
     const startInterview = () => {
         setSessionStarted(true);
-        setNextQuestion("Tell me about your experience with Python.");
+        setNextQuestion("This interview consists of 5 questions. You have 45 seconds to answer each question.\n\nFirst question: Tell me about your experience with Python.");
     };
 
-const handleSubmit = async (text) => {
-  text = text ?? userInput;
+    const handleSubmit = async (text) => {
+        text = text ?? userInput;
 
-  console.log("Submitting:", text);
+        if (!text.trim()) {
+            console.log("Invalid input, skipping submit.");
+            return;
+        }
 
-  if (!text.trim()) {
-    console.log("Invalid input, skipping submit.");
-    return;
-  }
+        stopSpeaking();
 
-  stopSpeaking();
+        try {
+            const res = await fetch("http://localhost:8001/api/chat", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    text,
+                    session_id: sessionId,
+                    topic_area: "Python backend development",
+                }),
+            });
 
-  try {
-    const res = await fetch("http://localhost:8000/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        session_id: sessionId,
-        topic_area: "Python backend development",
-      }),
-    });
+            const data = await res.json();
+            console.log("🔥 Full API Response Received in Frontend:", data); // ✅ Debug log
 
-    console.log("Response received:", res);
+            // ✅ Log each part of the response separately
+            console.log("📝 Setting response state:", data.response);
+            console.log("❓ Setting next question:", data.next_question);
 
-    if (!res.ok) throw new Error(`Failed to fetch response: ${res.status}`);
+            // ✅ Ensure response is set only if it exists
+            if (data.response) {
+                setResponse(data.response);
+            } else {
+                console.log("⚠️ No response received from API!");
+                setResponse("⚠️ No feedback available.");
+            }
 
-    const data = await res.json();
-    console.log("Data received:", data);
+            // ✅ Ensure next question is set correctly
+            if (data.next_question) {
+                setNextQuestion(data.next_question);
+            } else {
+                console.log("⚠️ No next question received!");
+            }
 
-    setResponse(data.response);
-    setNextQuestion(data.next_question);
-
-    // ✅ Clears the text box when a new question appears
-    setUserInput("");
-  } catch (error) {
-    console.error("API Error:", error);
-    setResponse("Error processing response.");
-  }
-};
-
-
+            setUserInput(""); // Clear input after submit
+        } catch (error) {
+            console.error("API Error:", error);
+            setResponse("Error processing response.");
+        }
+    };
 
 
     const handleNextQuestion = () => {
@@ -144,22 +171,18 @@ const handleSubmit = async (text) => {
                 <div className="bg-white/20 backdrop-blur-lg p-6 rounded-xl shadow-lg text-gray-900 w-[450px]">
                     <h1 className="text-2xl font-bold text-center text-white mb-4">Interview Session</h1>
 
-                    {response && (
-                        <div className="p-4 mb-4 bg-green-100 text-green-900 rounded-lg shadow-md">
-                            <h2 className="font-semibold mb-2">Feedback:</h2>
-                            <p>{response}</p>
-                            <button
-                                onClick={() => speak(response)}
-                                className="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                            >
-                                Play Feedback
-                            </button>
-                        </div>
-                    )}
+{response && (
+    <div className="text-white text-lg mb-4">
+        <p>{response}</p>
+        {nextQuestion && !response.includes(nextQuestion) && (
+            <p className="mt-4">{nextQuestion}</p>
+        )}
+    </div>
+)}
+
 
                     {!showNextQuestion ? (
                         <>
-                            <p className="text-lg font-medium mb-4 text-white">{nextQuestion}</p>
                             <div className="flex gap-4 mb-6">
                             <textarea
                                 value={userInput}
@@ -167,7 +190,15 @@ const handleSubmit = async (text) => {
                                 className="w-full p-3 border rounded bg-gray-200 text-gray-900 resize-none"
                                 placeholder="Type your response here..."
                                 rows="5"  // ✅ Makes the box bigger for longer answers
+                                disabled={!isListening}  // ✅ Completely blocks input until Speak is pressed
+
                             />
+
+                                {showLimitWarning && (
+                                    <p className="text-red-500 font-semibold mt-2">
+                                        ⚠️ You’ve reached the 45-second limit! Please finish your response.
+                                    </p>
+                                )}
 
 
                                 <button
@@ -176,8 +207,15 @@ const handleSubmit = async (text) => {
                                 >
                                     {isListening ? "Stop" : "Speak"}
                                 </button>
-                                <button onClick={() => handleSubmit()}
-                                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">
+                                <button
+                                    onClick={() => handleSubmit()}
+                                    disabled={!userInput.trim() || isListening}
+                                    className={`px-4 py-2 rounded text-white ${
+                                        !userInput.trim() || isListening
+                                            ? "bg-gray-500 cursor-not-allowed"
+                                            : "bg-green-600 hover:bg-green-700"
+                                    }`}
+                                >
                                     Submit
                                 </button>
 
@@ -188,7 +226,7 @@ const handleSubmit = async (text) => {
                             onClick={handleNextQuestion}
                             className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
                         >
-                            Next Question
+                        Next Question
                         </button>
                     )}
                 </div>

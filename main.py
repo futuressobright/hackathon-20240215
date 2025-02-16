@@ -12,7 +12,7 @@ from typing import List, Optional
 load_dotenv()
 
 wandb.login(key=os.getenv("WANDB_API_KEY"))  # Load from environment
-weave.init("interview-app")  # Name of your project
+weave.init("interview-hacker")  # ✅ Set project to "interview-hacker"
 
 # Initialize FastAPI
 app = FastAPI(title="Interview Assistant API")
@@ -32,7 +32,7 @@ model = genai.GenerativeModel('gemini-pro')
 
 # Enhanced data models
 class InterviewState(BaseModel):
-    difficulty_level: float = 1.0  # Scale of 0.0 to 2.0, 1.0 is medium
+    difficulty_level: float = 1.0
     topic_area: str
     questions_asked: List[str] = []
     responses: List[str] = []
@@ -48,24 +48,14 @@ class ChatResponse(BaseModel):
     difficulty_level: float
     next_question: Optional[str] = None
 
-# In-memory storage for interview states (replace with proper database in production)
+# In-memory storage for interview states
 interview_sessions = {}
 
 def adjust_difficulty(current_difficulty: float, response_quality: float) -> float:
-    """
-    Adjust difficulty based on response quality
-    response_quality: float between 0 and 1
-    Returns new difficulty level between 0.0 and 2.0
-    """
-    adjustment = (response_quality - 0.5) * 0.2  # Gradual adjustment
-    new_difficulty = current_difficulty + adjustment
-    return max(0.0, min(2.0, new_difficulty))  # Clamp between 0.0 and 2.0
+    adjustment = (response_quality - 0.5) * 0.2
+    return max(0.0, min(2.0, current_difficulty + adjustment))
 
 def assess_response_quality(response: str) -> float:
-    """
-    Analyze response quality using Gemini
-    Returns a score between 0 and 1
-    """
     prompt = f"""
     Analyze this interview response and rate its quality on a scale of 0 to 1:
     Response: {response}
@@ -77,66 +67,65 @@ def assess_response_quality(response: str) -> float:
     """
     try:
         assessment = model.generate_content(prompt)
-        score = float(assessment.text.strip())
-        return max(0.0, min(1.0, score))  # Ensure score is between 0 and 1
+        return max(0.0, min(1.0, float(assessment.text.strip())))
     except:
-        return 0.5  # Default to neutral if assessment fails
+        return 0.5
+
+@weave.op()  # ✅ Automatically tracks all function inputs/outputs
+def process_interview(session_id: str, text: str, topic_area: str):
+    session = interview_sessions.get(session_id)
+
+    if not session:
+        session = InterviewState(
+            difficulty_level=1.0,
+            topic_area=topic_area,
+            session_id=session_id
+        )
+        interview_sessions[session_id] = session
+
+    context_prompt = f"""
+    You are conducting a structured technical interview about {session.topic_area}.
+    Difficulty level: {session.difficulty_level:.1f}
+    Candidate response: {text}
+
+    Your task is:
+    1. **Evaluate** the response based on **completeness, technical accuracy, and clarity**.
+    2. **Give a short, constructive evaluation** of how well the candidate answered.
+    3. **DO NOT provide the correct answer** or explain the topic in detail.
+    4. **Generate one follow-up question** based on the candidate's response and difficulty level.
+
+    Format your response like this:
+    FEEDBACK: [Brief evaluation of the response]
+    NEXT_QUESTION: [One follow-up question]
+    """
+
+    response = model.generate_content(context_prompt)
+    response_parts = response.text.split("NEXT_QUESTION:")
+    # Only take the feedback part, removing the FEEDBACK: prefix if it exists
+    main_response = response_parts[0].replace("FEEDBACK:", "").strip()
+    next_question = response_parts[1].strip() if len(response_parts) > 1 else None
+
+    new_difficulty = adjust_difficulty(session.difficulty_level, assess_response_quality(text))
+
+    session.difficulty_level = new_difficulty
+    session.questions_asked.append(next_question or "")
+    session.responses.append(text)
+
+    return {
+        "response": main_response,  # Changed from ai_feedback
+        "difficulty_level": new_difficulty,
+        "next_question": next_question
+    }
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    try:
-        # Initialize or retrieve session state
-        if request.session_id not in interview_sessions:
-            if not request.topic_area:
-                raise HTTPException(status_code=400, detail="topic_area required for new session")
-            interview_sessions[request.session_id] = InterviewState(
-                difficulty_level=1.0,
-                topic_area=request.topic_area,
-                session_id=request.session_id
-            )
-        
-        session = interview_sessions[request.session_id]
-        
-        # Generate context-aware prompt
-        context_prompt = f"""
-        You are conducting a technical interview about {session.topic_area}.
-        Current difficulty level: {session.difficulty_level:.1f} (0=beginner, 1=intermediate, 2=expert)
-        Previous questions: {', '.join(session.questions_asked[-3:] if session.questions_asked else ['None'])}
-        User response: {request.text}
-        
-        Provide a detailed response and generate a relevant follow-up question 
-        appropriate for the current difficulty level.
-        Format your response as:
-        RESPONSE: [your response]
-        NEXT_QUESTION: [follow-up question]
-        """
-        
-        # Get response from Gemini
-        response = model.generate_content(context_prompt)
-        response_text = response.text
-        
-        # Parse response and next question
-        response_parts = response_text.split("NEXT_QUESTION:")
-        main_response = response_parts[0].replace("RESPONSE:", "").strip()
-        next_question = response_parts[1].strip() if len(response_parts) > 1 else None
-        
-        # Assess response quality and adjust difficulty
-        response_quality = assess_response_quality(request.text)
-        new_difficulty = adjust_difficulty(session.difficulty_level, response_quality)
-        
-        # Update session state
-        session.difficulty_level = new_difficulty
-        session.questions_asked.append(next_question if next_question else "")
-        session.responses.append(request.text)
-        
-        return ChatResponse(
-            response=main_response,
-            difficulty_level=new_difficulty,
-            next_question=next_question
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    response_data = process_interview(request.session_id, request.text, request.topic_area)
+
+    # ✅ Debugging Log
+    print("🔥 Process Interview Output:", response_data)
+
+    return ChatResponse(**response_data)  # Still using response_model validation
+
 
 # Health check endpoint remains the same
 @app.get("/health")
@@ -145,4 +134,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
