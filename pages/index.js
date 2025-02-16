@@ -171,28 +171,31 @@ export default function Home() {
                 <div className="bg-white/20 backdrop-blur-lg p-6 rounded-xl shadow-lg text-gray-900 w-[450px]">
                     <h1 className="text-2xl font-bold text-center text-white mb-4">Interview Session</h1>
 
-{response && (
-    <div className="text-white text-lg mb-4">
-        <p>{response}</p>
-        {nextQuestion && !response.includes(nextQuestion) && (
-            <p className="mt-4">{nextQuestion}</p>
-        )}
-    </div>
-)}
+                    {/* Display response if exists */}
+                    {response && (
+                        <div className="text-white text-lg mb-4">
+                            <p>{response}</p>
+                        </div>
+                    )}
 
+                    {/* Display current question */}
+                    {nextQuestion && (
+                        <div className="text-white text-lg mb-4">
+                            <p>{nextQuestion}</p>
+                        </div>
+                    )}
 
                     {!showNextQuestion ? (
                         <>
                             <div className="flex gap-4 mb-6">
-                            <textarea
-                                value={userInput}
-                                onChange={(e) => setUserInput(e.target.value)}
-                                className="w-full p-3 border rounded bg-gray-200 text-gray-900 resize-none"
-                                placeholder="Type your response here..."
-                                rows="5"  // ✅ Makes the box bigger for longer answers
-                                disabled={!isListening}  // ✅ Completely blocks input until Speak is pressed
-
-                            />
+                                <textarea
+                                    value={userInput}
+                                    onChange={(e) => setUserInput(e.target.value)}
+                                    className="w-full p-3 border rounded bg-gray-200 text-gray-900 resize-none"
+                                    placeholder="Type your response here..."
+                                    rows="5"
+                                    disabled={!isListening}
+                                />
 
                                 {showLimitWarning && (
                                     <p className="text-red-500 font-semibold mt-2">
@@ -226,7 +229,7 @@ export default function Home() {
                             onClick={handleNextQuestion}
                             className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
                         >
-                        Next Question
+                            Next Question
                         </button>
                     )}
                 </div>

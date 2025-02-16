@@ -37,6 +37,7 @@ class InterviewState(BaseModel):
     questions_asked: List[str] = []
     responses: List[str] = []
     session_id: str
+    question_count: int = 0
 
 class ChatRequest(BaseModel):
     text: str
@@ -51,9 +52,16 @@ class ChatResponse(BaseModel):
 # In-memory storage for interview states
 interview_sessions = {}
 
+
 def adjust_difficulty(current_difficulty: float, response_quality: float) -> float:
-    adjustment = (response_quality - 0.5) * 0.2
-    return max(0.0, min(2.0, current_difficulty + adjustment))
+    # Make adjustments more pronounced
+    adjustment = (response_quality - 0.5) * 0.5  # Changed from 0.2 to 0.5
+
+    # Add momentum - larger changes when moving in same direction
+    new_difficulty = current_difficulty + adjustment
+
+    # Keep within bounds but allow full range
+    return max(0.2, min(1.8, new_difficulty))  # Changed bounds to allow more range
 
 def assess_response_quality(response: str) -> float:
     prompt = f"""
@@ -79,9 +87,21 @@ def process_interview(session_id: str, text: str, topic_area: str):
         session = InterviewState(
             difficulty_level=1.0,
             topic_area=topic_area,
-            session_id=session_id
+            session_id=session_id,
+            question_count=0  # Initialize count
         )
         interview_sessions[session_id] = session
+
+    # Increment question count before processing
+    session.question_count += 1
+
+    # Check if we've reached the limit
+    if session.question_count >= 5:
+        return {
+            "response": "Thank you for completing the interview. You've answered all 5 questions.",
+            "difficulty_level": session.difficulty_level,
+            "next_question": None
+        }
 
     context_prompt = f"""
     You are conducting a structured technical interview about {session.topic_area}.
