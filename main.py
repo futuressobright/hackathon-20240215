@@ -4,10 +4,15 @@ from pydantic import BaseModel
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
+import weave
+import wandb
 from typing import List, Optional
 
 # Load environment variables
 load_dotenv()
+
+wandb.login(key=os.getenv("WANDB_API_KEY"))  # Load from environment
+weave.init("interview-app")  # Name of your project
 
 # Initialize FastAPI
 app = FastAPI(title="Interview Assistant API")
