@@ -187,25 +187,31 @@ export default function Home() {
                     </button>
                 </div>
             ) : interviewComplete ? (
-     <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
-                        <h1 className="text-3xl font-extrabold text-white mb-4">Thank You!</h1>
-                        <p className="mb-6 text-gray-300">
-                            You’ve completed the interview. We appreciate your time!
-                        </p>
-                        <button
-                            onClick={() => window.location.reload()}  // Restart interview
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
-                        >
-                            Return to Home
-                        </button>
-                    </div>
+                <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
+                    <h1 className="text-3xl font-extrabold text-white mb-4">Thank You!</h1>
+                    <p className="mb-6 text-gray-300">
+                        You’ve completed the interview. We appreciate your time!
+                    </p>
+                    <button
+                        onClick={() => window.location.reload()}  // Restart interview
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
+                    >
+                        Return to Home
+                    </button>
+                    <button
+                        onClick={() => setIsAuthenticated(false)}
+                        className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-md"
+                    >
+                        Login to View Your Results!
+                    </button>
+                </div>
             ) : (
                 <div className="bg-white/20 backdrop-blur-lg p-6 rounded-xl shadow-lg text-gray-900 w-[450px]">
                     <h1 className="text-2xl font-bold text-center text-white mb-4">Interview Session</h1>
 
                     {response && (
                         <div className="text-white text-lg mb-4">
-                            <p>{response}</p>
+                        <p>{response}</p>
                         </div>
                     )}
 
@@ -225,7 +231,7 @@ export default function Home() {
                                     className="w-full p-3 border rounded bg-gray-200 text-gray-900 resize-none"
                                     placeholder="Type your response here..."
                                     rows="5"
-                                    disabled={!isListening}
+                                    disabled={isListening}
                                 />
 
                                 {showLimitWarning && (
