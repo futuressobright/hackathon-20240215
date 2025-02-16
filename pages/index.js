@@ -12,36 +12,37 @@ export default function Home() {
     const [showNextQuestion, setShowNextQuestion] = useState(false);
 
     // Initialize session
-    useEffect(() => {
-        if ("webkitSpeechRecognition" in window) {
-            const recognition = new window.webkitSpeechRecognition();
-            recognition.continuous = true;  // ✅ Keep recognizing speech continuously
-            recognition.interimResults = true;  // ✅ Show words as they are spoken
+useEffect(() => {
+  if ("webkitSpeechRecognition" in window) {
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.continuous = true;  // ✅ Keeps listening
+    recognition.interimResults = true;  // ✅ Shows words while speaking
 
-            recognition.onresult = (event) => {
-                let interimTranscript = "";
-                let finalTranscript = "";
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
 
-                for (let i = 0; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + " ";
-                    } else {
-                        interimTranscript += event.results[i][0].transcript + " ";
-                    }
-                }
-
-                // ✅ Display real-time speech input
-                setUserInput(finalTranscript + interimTranscript);
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error:", event.error);
-                setIsListening(false);
-            };
-
-            window.recognition = recognition;
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + " ";
+        } else {
+          interimTranscript += event.results[i][0].transcript + " ";
         }
-    }, []);
+      }
+
+      // ✅ Updates the text box live
+      setUserInput(finalTranscript + interimTranscript);
+    };
+
+    recognition.onend = () => {
+      console.log("Speech recognition stopped.");
+      setIsListening(false);
+    };
+
+    window.recognition = recognition;
+  }
+}, []);
+
 
 
     const startInterview = () => {
@@ -49,11 +50,13 @@ export default function Home() {
         setNextQuestion("Tell me about your experience with Python.");
     };
 
-const handleSubmit = async (text = userInput) => {
-  console.log("Submitting:", text);  // ✅ Log what is being submitted
+const handleSubmit = async (text) => {
+  text = text ?? userInput;
 
-  if (typeof text !== "string" || !text.trim()) {
-    console.log("Invalid input, skipping submit.");  // ✅ Log if input is empty
+  console.log("Submitting:", text);
+
+  if (!text.trim()) {
+    console.log("Invalid input, skipping submit.");
     return;
   }
 
@@ -70,20 +73,24 @@ const handleSubmit = async (text = userInput) => {
       }),
     });
 
-    console.log("Response received:", res);  // ✅ Log API response
+    console.log("Response received:", res);
 
     if (!res.ok) throw new Error(`Failed to fetch response: ${res.status}`);
 
     const data = await res.json();
-    console.log("Data received:", data);  // ✅ Log parsed API data
+    console.log("Data received:", data);
 
     setResponse(data.response);
     setNextQuestion(data.next_question);
+
+    // ✅ Clears the text box when a new question appears
+    setUserInput("");
   } catch (error) {
     console.error("API Error:", error);
     setResponse("Error processing response.");
   }
 };
+
 
 
 
@@ -154,14 +161,14 @@ const handleSubmit = async (text = userInput) => {
                         <>
                             <p className="text-lg font-medium mb-4 text-white">{nextQuestion}</p>
                             <div className="flex gap-4 mb-6">
-                                <input
-                                    type="text"
-                                    value={userInput}
-                                    onChange={(e) => setUserInput(e.target.value)}
-                                    className="flex-1 p-2 border rounded bg-gray-200 text-gray-900"
-                                    placeholder="Press 'Speak' to start talking..."
-                                    disabled={!isListening}  // ✅ Disabled unless Speak is active
-                                />
+                            <textarea
+                                value={userInput}
+                                onChange={(e) => setUserInput(e.target.value)}
+                                className="w-full p-3 border rounded bg-gray-200 text-gray-900 resize-none"
+                                placeholder="Type your response here..."
+                                rows="5"  // ✅ Makes the box bigger for longer answers
+                            />
+
 
                                 <button
                                     onClick={toggleListening}
