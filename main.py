@@ -100,7 +100,7 @@ def process_interview(session_id: str, text: str, topic_area: str):
     # Check if we've reached the limit
     if session.question_count >= 5:
         return {
-            "response": "Thank you for completing the interview. You've answered all 5 questions.",
+            "evaluation": "Thank you for completing the interview. You've answered all 5 questions.",
             "difficulty_level": session.difficulty_level,
             "next_question": None,
             "status": "complete"  # Add a status field to indicate the interview is complete

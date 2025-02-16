@@ -1,17 +1,33 @@
 import {useState, useEffect} from "react";
 import {v4 as uuidv4} from "uuid";
 
+const AdaptiveBackground = ({ difficulty = 1.0, children }) => {
+    const getBackgroundClass = (level) => {
+        if (level <= 0.6) return "bg-gradient-to-br from-green-500 via-green-600 to-blue-600";   // Doing great - cool/calm
+        if (level <= 1.0) return "bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700"; // Normal - neutral
+        if (level <= 1.4) return "bg-gradient-to-br from-orange-500 via-red-600 to-purple-700";  // Getting challenging
+        return "bg-gradient-to-br from-red-600 via-red-800 to-black";                            // Maximum pressure
+    };
+
+  return (
+    <div className={`flex items-center justify-center min-h-screen ${getBackgroundClass(difficulty)} text-white transition-colors duration-1000`}>
+      {children}
+    </div>
+  );
+};
+
 export default function Home() {
     const [sessionStarted, setSessionStarted] = useState(false);
     const [response, setResponse] = useState("");
     const [isListening, setIsListening] = useState(false);
     const [userInput, setUserInput] = useState("");
     const [sessionId, setSessionId] = useState("");
-    const [difficulty, setDifficulty] = useState(1.0);
+    const [difficulty, setDifficulty] = useState(0.8);
     const [nextQuestion, setNextQuestion] = useState("");
     const [showNextQuestion, setShowNextQuestion] = useState(false);
     const [showLimitWarning, setShowLimitWarning] = useState(false);
     const [interviewComplete, setInterviewComplete] = useState(false);
+
 
     // Initialize speech recognition
     useEffect(() => {
@@ -65,7 +81,7 @@ export default function Home() {
         const newSessionId = uuidv4(); // Generate unique session ID
         setSessionId(newSessionId); // Set it in state
         setSessionStarted(true);
-        setNextQuestion("This interview consists of 5 questions. You have 45 seconds to answer each question.\n\nFirst question: Tell me about your experience with Python.");
+        setNextQuestion("This interview consists of 5 questions. You have 45 seconds to answer each question.\n\nFirst question: Tell me about your experience playing chess.");
     };
 
     const handleSubmit = async (text) => {
@@ -85,13 +101,15 @@ export default function Home() {
                 body: JSON.stringify({
                     text,
                     session_id: sessionId, // Use the generated session_id
-                    topic_area: "Python backend development",
+                    topic_area: "Chess expertise",
                     status: "in_progress",
                 }),
             });
 
             const data = await res.json();
             console.log("API Response:", data);
+            setDifficulty(data.difficulty_level);  // Add this line
+
 
             if (data.status === "complete" || data.response?.includes("Thank you for completing")) {
                 console.log("✅ Interview is complete! Setting state...");
@@ -107,7 +125,7 @@ export default function Home() {
                 setNextQuestion(data.next_question);
                 speak(data.next_question);
             }
-            
+
 
             setUserInput("");
         } catch (error) {
@@ -153,8 +171,8 @@ export default function Home() {
 
 
     return (
-        <div
-            className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white">
+        <AdaptiveBackground difficulty={difficulty}>
+
             {!sessionStarted ? (
                 <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
                     <h1 className="text-3xl font-extrabold text-white mb-4">AI Interview Assistant</h1>
@@ -246,6 +264,6 @@ export default function Home() {
                     )}
                 </div>
             )}
-        </div>
+        </AdaptiveBackground>
     );
 }
