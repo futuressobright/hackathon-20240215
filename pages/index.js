@@ -103,15 +103,11 @@ export default function Home() {
             }
 
 
-            if (data.response) {
-                setResponse(data.response);
-            } else {
-                setResponse("⚠️ No feedback available.");
-            }
-
             if (data.next_question) {
                 setNextQuestion(data.next_question);
+                speak(data.next_question);
             }
+            
 
             setUserInput("");
         } catch (error) {

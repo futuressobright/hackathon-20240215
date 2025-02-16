@@ -46,9 +46,10 @@ class ChatRequest(BaseModel):
     status: str
 
 class ChatResponse(BaseModel):
-    response: str
+    evaluation: str
     difficulty_level: float
     next_question: Optional[str] = None
+    status: str
 
 # In-memory storage for interview states
 interview_sessions = {}
@@ -135,7 +136,7 @@ def process_interview(session_id: str, text: str, topic_area: str):
     session.responses.append(text)
 
     return {
-        "response": main_response,  # Changed from ai_feedback
+        "evaluation": main_response,  # Changed from ai_feedback
         "difficulty_level": new_difficulty,
         "next_question": next_question,
         "status": "in_progress"
