@@ -9,29 +9,26 @@ export default function Home() {
     const [sessionId, setSessionId] = useState("");
     const [difficulty, setDifficulty] = useState(1.0);
     const [nextQuestion, setNextQuestion] = useState("");
-    const [showNextQuestion, setShowNextQuestion] = useState(false)
+    const [showNextQuestion, setShowNextQuestion] = useState(false);
     const [showLimitWarning, setShowLimitWarning] = useState(false);
+    const [interviewComplete, setInterviewComplete] = useState(false);
 
-
-    // Initialize session
+    // Initialize speech recognition
     useEffect(() => {
         if ("webkitSpeechRecognition" in window) {
             const recognition = new window.webkitSpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
 
-            let timer = null; // ✅ Timer for auto-stop
+            let timer = null;
 
             recognition.onstart = () => {
-                setShowLimitWarning(false); // ✅ Reset warning
+                setShowLimitWarning(false);
                 setIsListening(true);
-
-                // ✅ Auto-stop after 45 seconds
                 timer = setTimeout(() => {
-                    console.log("Max response time reached.");
                     recognition.stop();
-                    setShowLimitWarning(true); // ✅ Show warning
-                }, 45000);  // 45 seconds in milliseconds
+                    setShowLimitWarning(true);
+                }, 45000);
             };
 
             recognition.onresult = (event) => {
@@ -52,20 +49,21 @@ export default function Home() {
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
                 setIsListening(false);
-                clearTimeout(timer); // ✅ Stop the timer on error
+                clearTimeout(timer);
             };
 
             recognition.onend = () => {
                 setIsListening(false);
-                clearTimeout(timer); // ✅ Stop the timer when recognition ends
+                clearTimeout(timer);
             };
 
             window.recognition = recognition;
         }
     }, []);
 
-
     const startInterview = () => {
+        const newSessionId = uuidv4(); // Generate unique session ID
+        setSessionId(newSessionId); // Set it in state
         setSessionStarted(true);
         setNextQuestion("This interview consists of 5 questions. You have 45 seconds to answer each question.\n\nFirst question: Tell me about your experience with Python.");
     };
@@ -86,40 +84,41 @@ export default function Home() {
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
                     text,
-                    session_id: sessionId,
+                    session_id: sessionId, // Use the generated session_id
                     topic_area: "Python backend development",
+                    status: "in_progress",
                 }),
             });
 
             const data = await res.json();
-            console.log("🔥 Full API Response Received in Frontend:", data); // ✅ Debug log
+            console.log("API Response:", data);
 
-            // ✅ Log each part of the response separately
-            console.log("📝 Setting response state:", data.response);
-            console.log("❓ Setting next question:", data.next_question);
+            if (data.status === "complete" || data.response?.includes("Thank you for completing")) {
+                console.log("✅ Interview is complete! Setting state...");
+                setInterviewComplete(true);
+                setNextQuestion(null);
+                setResponse("Thank you for completing the interview.");
+                setUserInput("");
+                return;
+            }
 
-            // ✅ Ensure response is set only if it exists
+
             if (data.response) {
                 setResponse(data.response);
             } else {
-                console.log("⚠️ No response received from API!");
                 setResponse("⚠️ No feedback available.");
             }
 
-            // ✅ Ensure next question is set correctly
             if (data.next_question) {
                 setNextQuestion(data.next_question);
-            } else {
-                console.log("⚠️ No next question received!");
             }
 
-            setUserInput(""); // Clear input after submit
+            setUserInput("");
         } catch (error) {
             console.error("API Error:", error);
             setResponse("Error processing response.");
         }
     };
-
 
     const handleNextQuestion = () => {
         setResponse("");
@@ -140,9 +139,6 @@ export default function Home() {
     const speak = (text) => {
         if ("speechSynthesis" in window) {
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
             window.speechSynthesis.speak(utterance);
         }
     };
@@ -152,6 +148,13 @@ export default function Home() {
             window.speechSynthesis.cancel();
         }
     };
+
+    console.log("DEBUG STATE:", {
+        interviewComplete,
+        nextQuestion,
+        response
+    });
+
 
     return (
         <div
@@ -167,23 +170,38 @@ export default function Home() {
                         Start Interview
                     </button>
                 </div>
+            ) : interviewComplete ? (
+                <div
+                    className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white">
+                    <div className="bg-white/20 backdrop-blur-lg p-8 rounded-xl shadow-lg text-center w-96">
+                        <h1 className="text-3xl font-extrabold text-white mb-4">Thank You!</h1>
+                        <p className="mb-6 text-gray-300">
+                            You’ve completed the interview. We appreciate your time!
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}  // Restart interview
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
+                        >
+                            Return to Home
+                        </button>
+                    </div>
+                </div>
             ) : (
                 <div className="bg-white/20 backdrop-blur-lg p-6 rounded-xl shadow-lg text-gray-900 w-[450px]">
                     <h1 className="text-2xl font-bold text-center text-white mb-4">Interview Session</h1>
 
-                    {/* Display response if exists */}
                     {response && (
                         <div className="text-white text-lg mb-4">
                             <p>{response}</p>
                         </div>
                     )}
 
-                    {/* Display current question */}
-                    {nextQuestion && (
+                    {!interviewComplete && nextQuestion && (
                         <div className="text-white text-lg mb-4">
                             <p>{nextQuestion}</p>
                         </div>
                     )}
+
 
                     {!showNextQuestion ? (
                         <>
@@ -203,7 +221,6 @@ export default function Home() {
                                     </p>
                                 )}
 
-
                                 <button
                                     onClick={toggleListening}
                                     className={`px-4 py-2 rounded ${isListening ? "bg-red-500" : "bg-blue-600"} text-white`}
@@ -221,7 +238,6 @@ export default function Home() {
                                 >
                                     Submit
                                 </button>
-
                             </div>
                         </>
                     ) : (

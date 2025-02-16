@@ -43,6 +43,7 @@ class ChatRequest(BaseModel):
     text: str
     session_id: str
     topic_area: Optional[str] = None
+    status: str
 
 class ChatResponse(BaseModel):
     response: str
@@ -100,7 +101,9 @@ def process_interview(session_id: str, text: str, topic_area: str):
         return {
             "response": "Thank you for completing the interview. You've answered all 5 questions.",
             "difficulty_level": session.difficulty_level,
-            "next_question": None
+            "next_question": None,
+            "status": "complete"  # Add a status field to indicate the interview is complete
+
         }
 
     context_prompt = f"""
@@ -134,7 +137,8 @@ def process_interview(session_id: str, text: str, topic_area: str):
     return {
         "response": main_response,  # Changed from ai_feedback
         "difficulty_level": new_difficulty,
-        "next_question": next_question
+        "next_question": next_question,
+        "status": "in_progress"
     }
 
 @app.post("/api/chat", response_model=ChatResponse)
